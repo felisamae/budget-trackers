@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Smart Budget Tracker</title>
+
+<style>
+body {
+    font-family: Arial;
+    margin: 0;
+    background: linear-gradient(to right, #3a7bd5, #00d2ff);
+}
+
+/* Screens */
+.screen {
+    display: none;
+    height: 100vh;
+    justify-content: center;
+    align-items: center;
+}
+
+.active {
+    display: flex;
+}
+
+/* Card UI */
+.card {
+    background: white;
+    padding: 20px;
+    width: 320px;
+    border-radius: 20px;
+    text-align: center;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+
+input, select {
+    width: 90%;
+    padding: 10px;
+    margin: 8px;
+    border-radius: 10px;
+    border: 1px solid #ccc;
+}
+
+button {
+    width: 95%;
+    padding: 12px;
+    margin: 8px;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(to right, #3a7bd5, #00d2ff);
+    color: white;
+    font-weight: bold;
+}
+
+/* Transaction */
+ul {
+    list-style: none;
+    padding: 0;
+}
+
+li {
+    margin: 5px;
+    padding: 10px;
+    border-radius: 10px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.income { background: #e6f9f0; }
+.expense { background: #fdecea; }
+
+.delete-btn {
+    background: red;
+    color: white;
+    border: none;
+}
+
+/* Chart */
+.bar {
+    height: 10px;
+    border-radius: 10px;
+}
+
+.income-bar { background: green; }
+.expense-bar { background: red; }
+</style>
+</head>
+
+<body>
+
+<!-- 🟣 Welcome Screen -->
+<div id="welcome" class="screen active">
+    <div class="card">
+        <h2>💰 Smart Budget Tracker</h2>
+        <p>Track your money easily</p>
+        <button onclick="showScreen('login')">Get Started</button>
+    </div>
+</div>
+
+<!-- 🔐 Login Screen -->
+<div id="login" class="screen">
+    <div class="card">
+        <h2>Login</h2>
+        <input type="text" placeholder="Username" id="user">
+        <input type="password" placeholder="Password">
+        <button onclick="login()">Login</button>
+    </div>
+</div>
+
+<!-- 🏠 Home Screen -->
+<div id="home" class="screen">
+    <div class="card">
+        <h2>Dashboard</h2>
+        <h3>Balance: ₱<span id="balance">0</span></h3>
+
+        <button onclick="showScreen('add')">+ Add Transaction</button>
+
+        <select onchange="filterList(this.value)">
+            <option value="all">All</option>
+            <option value="income">Income</option>
+            <option value="expense">Expense</option>
+        </select>
+
+        <ul id="list"></ul>
+
+        <h3>Summary</h3>
+        <div>Income</div>
+        <div id="incomeBar" class="bar income-bar"></div>
+        <div>Expense</div>
+        <div id="expenseBar" class="bar expense-bar"></div>
+
+        <button onclick="clearAll()">Clear All</button>
+    </div>
+</div>
+
+<!-- ➕ Add Transaction Screen -->
+<div id="add" class="screen">
+    <div class="card">
+        <h2>Add Transaction</h2>
+
+        <input type="text" id="desc" placeholder="Description">
+        <input type="number" id="amount" placeholder="Amount">
+        <input type="date" id="date">
+
+        <select id="type">
+            <option value="income">Income</option>
+            <option value="expense">Expense</option>
+        </select>
+
+        <button onclick="addTransaction()">Save</button>
+        <button onclick="showScreen('home')">Back</button>
+    </div>
+</div>
+
+<script>
+let transactions = JSON.parse(localStorage.getItem("transactions")) || [];
+let filter = "all";
+
+/* Screen Navigation */
+function showScreen(screenId) {
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    document.getElementById(screenId).classList.add("active");
+}
+
+/* Login */
+function login() {
+    let user = document.getElementById("user").value;
+    if (!user) return alert("Enter username!");
+    showScreen("home");
+    updateDisplay();
+}
+
+/* Display */
+function updateDisplay() {
+    let balance = 0, income = 0, expense = 0;
+    document.getElementById("list").innerHTML = "";
+
+    transactions.forEach((t, index) => {
+        if (filter !== "all" && t.type !== filter) return;
+
+        let li = document.createElement("li");
+        li.className = t.type;
+
+        li.innerHTML = `
+            ${t.desc} ₱${t.amount}
+            <button class="delete-btn" onclick="deleteItem(${index})">X</button>
+        `;
+
+        document.getElementById("list").appendChild(li);
+
+        if (t.type === "income") {
+            balance += t.amount;
+            income += t.amount;
+        } else {
+            balance -= t.amount;
+            expense += t.amount;
+        }
+    });
+
+    document.getElementById("balance").innerText = balance;
+
+    let total = income + expense;
+    document.getElementById("incomeBar").style.width =
+        total ? (income / total * 100) + "%" : "0%";
+
+    document.getElementById("expenseBar").style.width =
+        total ? (expense / total * 100) + "%" : "0%";
+}
+
+/* Add */
+function addTransaction() {
+    let desc = document.getElementById("desc").value;
+    let amount = parseFloat(document.getElementById("amount").value);
+    let date = document.getElementById("date").value;
+    let type = document.getElementById("type").value;
+
+    if (!desc || !amount || !date) {
+        alert("Complete all fields!");
+        return;
+    }
+
+    transactions.push({ desc, amount, date, type });
+    localStorage.setItem("transactions", JSON.stringify(transactions));
+
+    showScreen("home");
+    updateDisplay();
+}
+
+/* Delete */
+function deleteItem(index) {
+    transactions.splice(index, 1);
+    localStorage.setItem("transactions", JSON.stringify(transactions));
+    updateDisplay();
+}
+
+/* Filter */
+function filterList(value) {
+    filter = value;
+    updateDisplay();
+}
+
+/* Clear */
+function clearAll() {
+    if (confirm("Delete all data?")) {
+        transactions = [];
+        localStorage.removeItem("transactions");
+        updateDisplay();
+    }
+}
+</script>
+
+</body>
+</html>
